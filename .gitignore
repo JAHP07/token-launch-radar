@@ -1,0 +1,6 @@
+# Local-only, never part of the entry:
+# - out/ is the build output (rebuilt with `node main.ts`).
+# - token-radar-01-kit/ is the competition kit (rules, snapshot, CLI);
+#   the delivery package must not include it.
+out/
+token-radar-01-kit/
