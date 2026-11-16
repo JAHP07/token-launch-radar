@@ -80,6 +80,9 @@ export interface BlindTest {
   /** Fit over all comparables, for reference (the folds fit their own). */
   train_intercept: number;
   train_slope: number;
+  /** Empirical actual/predicted quartiles from held-out predictions, not confidence bounds. */
+  actual_to_predicted_p25: number;
+  actual_to_predicted_p75: number;
 }
 
 /** The model's tunables. All of them are stated on the dashboard. */
@@ -181,12 +184,21 @@ export interface LiveRow {
   change_7d: number | null;
 }
 
+export interface Coverage {
+  watchlist_total: number;
+  watchlist_covered: number;
+  watchlist_missing: string[];
+  snapshot_as_of: string;
+  snapshot_hash: string;
+}
+
 /** Everything the dashboard renders. */
 export interface RadarData {
   as_of: string;
   source: string;
   floor_usd: number;
   model_version: string;
+  coverage: Coverage;
   settings: ModelSettings;
   fit: CompsFit;
   blind: BlindTest;
@@ -439,6 +451,8 @@ export function blindTest(
   }
   const sorted = [...apes].sort((a, b) => a - b);
   const p75 = sorted.length > 0 ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.75))]! : 0;
+  const actualRatios = ratios.map((r) => 1 / r).sort((a, b) => a - b);
+  const quartile = (q: number) => actualRatios[Math.floor((actualRatios.length - 1) * q)] ?? 1;
   const full = fitComps(protocols, settings);
   return {
     held_out: comps.length,
@@ -448,6 +462,8 @@ export function blindTest(
     fold_median_ape_pct: foldMedians,
     train_intercept: full.intercept,
     train_slope: full.slope,
+    actual_to_predicted_p25: quartile(0.25),
+    actual_to_predicted_p75: quartile(0.75),
   };
 }
 
@@ -538,45 +554,18 @@ function holdDays(ageDays: number | null, settings: ModelSettings): number {
 
 /** The first action of the farm, in the protocol's own category. */
 function categoryAction(p: SnapshotProtocol, capital: number, chain: string): string {
-  const n = p.name;
-  switch (p.category) {
-    case 'Lending':
-    case 'CDP':
-    case 'Collateral Markets':
-      return `Lend $${capital} of USDC on ${n} (${chain}) and leave the deposit earning.`;
-    case 'Dexs':
-      return `Add $${capital} of liquidity to the main ${n} pool on ${chain} and keep the LP position open.`;
-    case 'Yield':
-      return `Deposit $${capital} into the highest-TVL ${n} vault on ${chain} and hold the position.`;
-    case 'Bridge':
-    case 'Canonical Bridge':
-      return `Bridge $${capital} of USDC into ${chain} through ${n}, then use the funds inside its app.`;
-    case 'Liquid Staking':
-    case 'Restaking':
-    case 'Staking Pool':
-      return `Stake $${capital} through ${n} on ${chain} and hold the receipt token in your wallet.`;
-    case 'Perpetuals':
-    case 'Derivatives':
-      return `Deposit $${capital} of USDC as margin on ${n} (${chain}) and open one small hedged position.`;
-    case 'Prediction':
-      return `Fund $${capital} and take one position in a ${n} market on ${chain}.`;
-    case 'Risk Curators':
-    case 'Onchain Capital Allocator':
-      return `Deposit $${capital} into a ${n} vault on ${chain} and hold the shares.`;
-    case 'RWA':
-      return `Mint $${capital} of the yield-bearing asset on ${n} (${chain}) and hold it.`;
-    case 'Insurance':
-      return `Buy $${capital} of cover from ${n} on ${chain} and keep the policy active.`;
-    case 'Stablecoin Wrapper':
-    case 'Stablecoins':
-      return `Mint or hold $${capital} of the stable asset through ${n} on ${chain}.`;
-    case 'Payments':
-      return `Route $${capital} of payments through ${n} on ${chain} over the month.`;
-    case 'Governance Incentives':
-      return `Lock $${capital} in ${n} governance on ${chain} and vote once while it is locked.`;
-    default:
-      return `Deposit $${capital} of USDC into ${n} on ${chain} and keep the position open.`;
-  }
+  const actions: Record<string, string> = {
+    Lending: 'a lending deposit', CDP: 'a collateral deposit',
+    'Collateral Markets': 'a collateral deposit', Dexs: 'a liquidity position',
+    Yield: 'a vault deposit', Bridge: 'a bridge transfer', 'Canonical Bridge': 'a bridge transfer',
+    'Liquid Staking': 'a staking position', Restaking: 'a staking position', 'Staking Pool': 'a staking position',
+    Perpetuals: 'a margin deposit', Derivatives: 'a margin deposit', Prediction: 'a market position',
+    'Risk Curators': 'a vault deposit', 'Onchain Capital Allocator': 'a vault deposit',
+    RWA: 'an asset purchase', Insurance: 'a cover purchase',
+    'Stablecoin Wrapper': 'a stable asset position', Stablecoins: 'a stable asset position',
+    Payments: 'a payment', 'Governance Incentives': 'a governance action',
+  };
+  return `Consider ${actions[p.category ?? ''] ?? 'an app action'} on ${p.name} (${chain}) only if supported on its official site. Estimated capital: $${capital}, an entry TVL-tier rule, not a verified minimum.`;
 }
 
 /** Six steps to farm one pre-token protocol: action, cost, time. */
@@ -592,10 +581,10 @@ export function farmPlan(
   return [
     `Open a fresh wallet for this farm only and store its recovery phrase offline, never in a screenshot or chat.`,
     categoryAction(p, capital, chain),
-    `Do one qualifying action each week — a deposit, a swap, a vote or a borrow, whichever ${p.name} counts toward its activity record.`,
-    `Keep the position open for at least ${hold} days so more than one snapshot catches it.`,
+    `Check ${p.name}'s official rewards/points page for what counts before any weekly action. No eligibility or reward is evidenced by this snapshot.`,
+    `Estimated hold: about ${hold} days, an entry age-based rule. Check withdrawal terms first; this is not a verified requirement or a promise of snapshot inclusion.`,
     `Check ${p.name}'s own points or rewards page from its official site only; never pay to claim and never sign a blind approval.`,
-    `Record the wallet address, the dates and the transaction hashes in a farm log so you can prove the activity later.`,
+    `Record the wallet address, the dates and the transaction hashes in a farm log for your own activity records.`,
   ].map((s) => s.trim());
 }
 
@@ -613,18 +602,19 @@ export function farmPlanCost(
   const texts = farmPlan(p, asOf, settings);
   return [
     { text: texts[0]!, cost: 'nothing to create', time: '5 minutes' },
-    { text: texts[1]!, cost: `$${capital} stays in the position, plus ${gas.gas} gas`, time: '15 minutes' },
-    { text: texts[2]!, cost: `${gas.gas} a week`, time: '10 minutes a week' },
-    { text: texts[3]!, cost: `$${capital} stays in the position`, time: `${hold} days` },
+    { text: texts[1]!, cost: `est. $${capital} capital + ${gas.gas} gas`, time: '15 minutes' },
+    { text: texts[2]!, cost: `est. ${gas.gas} gas per action`, time: '10 minutes a week' },
+    { text: texts[3]!, cost: `est. $${capital} capital at risk`, time: `${hold} days` },
     { text: texts[4]!, cost: 'nothing to check', time: '10 minutes' },
     { text: texts[5]!, cost: 'nothing', time: '5 minutes' },
-  ];
+  ].map((step) => ({ ...step, time: `est. ${step.time}` }));
 }
 
 /** Build the board and the dashboard data from the snapshot. */
 export function buildRadar(
   snapshot: Snapshot,
   settings: ModelSettings = SETTINGS,
+  snapshotHash = '',
 ): { board: BoardRow[]; data: RadarData } {
   const fit = fitComps(snapshot.protocols, settings);
   const blind = blindTest(snapshot.protocols, snapshot.as_of, settings);
@@ -683,7 +673,17 @@ export function buildRadar(
       change_7d: p.change_7d,
     }));
 
+  const present = new Set(board.map((r) => r.slug));
+  const missing = snapshot.watchlist.filter((slug) => !present.has(slug));
+  const coverage: Coverage = {
+    watchlist_total: snapshot.watchlist.length,
+    watchlist_covered: snapshot.watchlist.length - missing.length,
+    watchlist_missing: missing,
+    snapshot_as_of: snapshot.as_of,
+    snapshot_hash: snapshotHash,
+  };
   const data: RadarData = {
+    coverage,
     as_of: snapshot.as_of,
     source: snapshot.source,
     floor_usd: snapshot.floor_usd,

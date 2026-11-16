@@ -135,3 +135,48 @@ th { font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.04em; color
   .farm li { grid-template-columns: 30px 1fr; }
   .farm .cost { grid-column: 2; text-align: left; }
 }
+
+/* v3: keep the evidence strip short and give the board the first screen. */
+.wrap { max-width: 1320px; }
+.top { padding: 16px 0 12px; }
+.top h1 { font-size: 27px; }
+.top .sub { max-width: none; margin-bottom: 6px; }
+.top .coverage { margin: 5px 0 0; color: #e0e8ff; font-size: 13px; }
+main.wrap { padding-top: 12px; }
+#model-panel { padding: 10px 14px; margin-bottom: 12px; }
+#model-formula { font-size: 14px; font-weight: 600; margin: 0; }
+.stats { gap: 8px; margin: 6px 0; }
+.stat { min-width: 0; flex: 1 1 120px; padding: 4px 9px; }
+.stat b { font-size: 17px; }
+#model-panel details { margin-top: 4px; font-size: 13px; }
+#model-summary { margin-top: 8px; }
+.tabs { margin-bottom: 10px; }
+.controls { margin-bottom: 10px; }
+.board td { padding: 6px 10px; }
+.board td:nth-child(4) { max-width: 240px; overflow-wrap: anywhere; }
+/* A detail route starts at the protocol header; the full methodology stays below. */
+.detail-view .top .sub, .detail-view .top .meta { display: none; }
+.detail-view .top { padding: 10px 0; }
+.detail-view .top h1 { font-size: 21px; }
+.detail-view .tabs { float: right; margin-bottom: 0; }
+.detail-view .back { padding: 5px 10px; margin-bottom: 8px; }
+.detail-head { clear: both; }
+.detail-head h2 { font-size: 25px; }
+.facts { gap: 5px 18px; margin: 6px 0; }
+.band { font-size: 13px; color: var(--muted); margin: 6px 0 10px; }
+#detail h3 { font-size: 16px; line-height: 1.25; margin: 8px 0 4px; }
+#detail h3 small { font-weight: 400; font-size: 12px; color: var(--muted); }
+.breakdown { margin-bottom: 8px; font-size: 14px; }
+.breakdown td { padding: 3px 10px; }
+.farm { font-size: 14px; line-height: 1.4; }
+.farm li { grid-template-columns: 26px minmax(0, 1fr) 265px; gap: 10px; padding: 6px 0; }
+.farm .cost { white-space: normal; font-size: 12px; }
+.farm .cost b { font-size: 12px; }
+#detail .note { margin: 8px 0; font-size: 12px; }
+@media (max-width: 640px) {
+  .stats { gap: 5px; }
+  .stat { flex-basis: 100px; }
+  .detail-view .tabs { float: none; margin-bottom: 8px; }
+  .farm li { grid-template-columns: 26px minmax(0, 1fr); }
+  .farm .cost { grid-column: 2; }
+}

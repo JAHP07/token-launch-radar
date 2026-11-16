@@ -43,6 +43,19 @@
 
   // ---- header and model panel -------------------------------------------
   var comps = D.fit.comps;
+  // Coverage evidence: prefer the generated dashboard/coverage.js (which is
+  // inside the dossier text), falling back to the coverage inside data.js.
+  var coverage = (typeof window !== 'undefined' && window.RADAR_COVERAGE) || D.coverage;
+  var evidence = (typeof window !== 'undefined' && window.RADAR_COVERAGE)
+    ? 'evidence: dashboard/coverage.js'
+    : 'evidence: data.js coverage';
+  document.getElementById('coverage').textContent =
+    'Watchlist ' + coverage.watchlist_covered + '/' + coverage.watchlist_total + ' covered · Snapshot ' +
+    coverage.snapshot_as_of + ' · input SHA-256 ' + coverage.snapshot_hash +
+    (coverage.board_hash ? ' · board SHA-256 ' + coverage.board_hash : '') + ' · ' + evidence +
+    (coverage.watchlist_missing.length ? ' · Missing: ' + coverage.watchlist_missing.join(', ') : '');
+  document.getElementById('model-formula').textContent =
+    'Fitted curve: log10(market cap) = ' + D.fit.intercept + ' + ' + D.fit.slope + ' × log10(TVL)';
   document.getElementById('meta').textContent =
     'Snapshot ' + D.as_of + ' · source ' + D.source + ' · floor ' + money(D.floor_usd) +
     ' · ' + D.board_size + ' protocols ranked (' + D.watchlist_size + ' watchlist + ' + D.early_size + ' early)' +
@@ -112,7 +125,7 @@
         '<td class="rank num">' + r.rank + '</td>' +
         '<td><strong>' + esc(r.name) + '</strong><br><span style="color:var(--muted);font-size:12.5px">' + esc(r.slug) + '</span></td>' +
         '<td>' + esc(r.category || '—') + '</td>' +
-        '<td>' + esc(r.chains.join(', ')) + '</td>' +
+        '<td title="' + esc(r.chains.join(', ')) + '">' + esc(r.chains.slice(0, 2).join(', ')) + (r.chains.length > 2 ? ' +' + (r.chains.length - 2) : '') + '</td>' +
         '<td class="num">' + money(r.tvl_usd) + '</td>' +
         '<td class="num">' + pct(r.change_7d) + '</td>' +
         '<td class="num">' + age(r.age_days) + '</td>' +
@@ -150,17 +163,20 @@
       ['Maturity multiplier (' + age(r.age_days) + ')', r.maturity_multiplier.toFixed(2) + '×'],
       ['Implied value', money(r.implied_value_usd)],
     ];
+    var bandLow = r.implied_value_usd * D.blind.actual_to_predicted_p25;
+    var bandHigh = r.implied_value_usd * D.blind.actual_to_predicted_p75;
     box.innerHTML =
       '<div class="detail-head"><h2>' + esc(r.name) + '</h2><span class="implied">' + money(r.implied_value_usd) + ' <small>implied value</small></span></div>' +
       '<div class="facts"><span>Rank <b>#' + r.rank + '</b></span><span>Category <b>' + esc(r.category || '—') + '</b></span>' +
       '<span>Chains <b>' + esc(r.chains.join(', ')) + '</b></span><span>TVL <b>' + money(r.tvl_usd) + '</b></span>' +
       '<span>7d <b>' + (r.change_7d === null ? '—' : (r.change_7d >= 0 ? '+' : '') + r.change_7d.toFixed(1) + '%') + '</b></span>' +
       '<span>Age <b>' + age(r.age_days) + '</b></span><span>Token <b>records no token</b></span></div>' +
+      '<p class="band">P25–P75 empirical value range: <strong>' + money(bandLow) + ' – ' + money(bandHigh) + '</strong> · held-out actual/predicted quartiles × implied value; not confidence bounds.</p>' +
       '<h3>How the value was computed</h3>' +
       '<table class="breakdown"><tbody>' + rows.map(function (x) {
         return '<tr><td>' + esc(x[0]) + '</td><td><strong>' + esc(x[1]) + '</strong></td></tr>';
       }).join('') + '</tbody></table>' +
-      '<h3>Farm plan</h3>' +
+      '<h3>Farm plan <small>Entry estimates · capital, gas and timing are fixed planning rules, not verified requirements</small></h3>' +
       '<ol class="farm">' + r.farm_steps.map(function (s, i) {
         return '<li><div>' + esc(s) + '</div><div class="cost"><b>' + esc(r.farm_costs[i] || '') + '</b>' + esc(r.farm_times[i] || '') + '</div></li>';
       }).join('') + '</ol>' +
@@ -184,6 +200,8 @@
   var tabBoard = document.getElementById('tab-board');
   var tabLive = document.getElementById('tab-live');
   function show(view) {
+    document.body.classList.toggle('detail-view', view === 'detail');
+    document.getElementById('model-panel').hidden = view === 'detail';
     viewBoard.hidden = view !== 'board';
     viewDetail.hidden = view !== 'detail';
     viewLive.hidden = view !== 'live';
