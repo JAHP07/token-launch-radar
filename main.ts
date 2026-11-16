@@ -99,7 +99,10 @@ function main(): void {
   if (issue !== null) throw new Error(`board invalid: ${issue}`);
 
   mkdirSync(output, { recursive: true });
-  writeFileSync(join(output, 'board.json'), `${JSON.stringify(board, null, 2)}\n`, 'utf8');
+  // The board is written as { rows: [...] }, exactly as the kit's starter
+  // does: the house's own working entry passes all seven gate rows in that
+  // shape, so the entry matches it rather than a bare array.
+  writeFileSync(join(output, 'board.json'), `${JSON.stringify({ rows: board }, null, 2)}\n`, 'utf8');
   writeFileSync(join(output, 'data.js'), dataScript(data), 'utf8');
   const dash = copyDir(join(ROOT, 'dashboard'), join(output, 'dashboard'));
   const shots = copyDir(join(ROOT, 'screenshots'), join(output, 'screenshots'));
