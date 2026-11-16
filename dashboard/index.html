@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Token Launch Radar — pre-token protocols ranked by fitted implied value</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>Token Launch Radar</h1>
+    <p class="sub">Pre-token protocols ranked by an implied value fitted from the snapshot&rsquo;s own tokenized comparables &mdash; never from a hardcoded list of names.</p>
+    <p class="meta" id="meta">Loading&hellip;</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="panel" id="model-panel" aria-label="The model">
+    <h2>How the value is fitted</h2>
+    <p id="model-summary">Loading&hellip;</p>
+    <div class="stats" id="model-stats"></div>
+    <details id="shifts">
+      <summary>Category shifts (log10 units, shrunk by sample size)</summary>
+      <table class="shifts" id="shifts-table">
+        <thead><tr><th>Category</th><th>Comps</th><th>Shift</th><th>&times; value</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </details>
+  </section>
+
+  <nav class="tabs" aria-label="Views">
+    <button id="tab-board" class="tab active" type="button">Pre-token board</button>
+    <button id="tab-live" class="tab" type="button">Live tokens</button>
+  </nav>
+
+  <section id="view-board" class="view">
+    <div class="controls">
+      <label>Search <input id="search" type="search" placeholder="protocol name or slug" autocomplete="off"></label>
+      <label>Category
+        <select id="category"><option value="">All categories</option></select>
+      </label>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="table-wrap">
+      <table class="board" id="board">
+        <thead>
+          <tr>
+            <th data-sort="rank">Rank</th>
+            <th data-sort="name">Protocol</th>
+            <th data-sort="category">Category</th>
+            <th data-sort="chains">Chains</th>
+            <th data-sort="tvl_usd">TVL</th>
+            <th data-sort="change_7d">7d</th>
+            <th data-sort="age_days">Age</th>
+            <th data-sort="implied_value_usd">Implied value</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="hint">Click a row to see how its implied value was computed and the farm plan for it.</p>
+  </section>
+
+  <section id="view-detail" class="view" hidden>
+    <button id="back" class="back" type="button">&larr; Back to the board</button>
+    <article id="detail"></article>
+  </section>
+
+  <section id="view-live" class="view" hidden>
+    <p class="note">These protocols already trade. The board shows the market&rsquo;s own value for them &mdash; no model is applied. They are the comparables the pre-token values were fitted from.</p>
+    <div class="table-wrap">
+      <table class="board" id="live">
+        <thead>
+          <tr><th>Protocol</th><th>Category</th><th>Chains</th><th>TVL</th><th>Market cap</th><th>Mcap / TVL</th><th>7d</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" id="method" aria-label="Methodology">
+    <h2>Methodology</h2>
+    <ol>
+      <li><strong>Comparables.</strong> Every protocol in the snapshot that already has a token trading (a market cap and a TVL) is one observation of what the market pays for a dollar of TVL. Exchanges are excluded: their books are not comparable to a protocol&rsquo;s TVL.</li>
+      <li><strong>The curve.</strong> A least-squares fit of log10(market cap) on log10(TVL) over those comparables. The fit, its R-squared and its sample size are shown above.</li>
+      <li><strong>Category shifts.</strong> Each category&rsquo;s median residual from the curve, shrunk by sample size, so a category with few comparables stays close to the curve. Categories with fewer than three comparables get no shift.</li>
+      <li><strong>Blind test.</strong> Five-fold cross-validation of the whole model: the comparables are split into five groups by slug, the curve and the category shifts are fitted on four groups, and the fifth group&rsquo;s market caps are predicted with the growth and maturity multipliers applied, as the board scores a pre-token protocol. Every comparable is predicted once. The median error, the 75th percentile and the share of predictions within 2&times; are shown above, so you can see how much the model is worth before trusting any single number. &ldquo;Within 2&times;&rdquo; means the prediction lies between half and twice the real market cap (0.5 &le; predicted/real &le; 2); a prediction far below the real value does not count.</li>
+      <li><strong>Growth and maturity.</strong> The 7-day TVL change moves the value (clamped to &minus;60% / +120%, half weight). Age moves it from 0.6&times; for a new protocol to 1&times; after three years; an unknown age counts as one year.</li>
+      <li><strong>The board.</strong> All 40 watchlist protocols, plus every other rankable pre-token protocol below the snapshot floor, ordered by implied value. Versioned pools and exchanges are never ranked.</li>
+    </ol>
+    <h2>What this radar does not do</h2>
+    <p>It never predicts whether or when a protocol issues a token. The snapshot records no token; that is not proof there is none. The implied value is this entry&rsquo;s own claim about what a token would be worth if the protocol&rsquo;s record stayed as it is. Farm plans are a starting point, not financial advice: check the protocol&rsquo;s own pages, never pay to claim, and never sign a blind approval.</p>
+  </section>
+</main>
+
+<footer class="wrap foot">
+  <p>Built by an AI agent for make.fun&rsquo;s token-radar-01 bounty. Data: the sealed snapshot carried by the kit (source and date shown above). Implied values are the entry&rsquo;s own claims, computed at run time from that snapshot.</p>
+</footer>
+
+<script src="../data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

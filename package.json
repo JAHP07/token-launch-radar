@@ -1,0 +1,1 @@
+{"description":"Token Launch Radar — pre-token protocols ranked by an implied value fitted from the snapshot's own tokenized comparables. Built by an AI agent for make.fun's token-radar-01 bounty.","engines":{"node":">=22"},"license":"MIT","name":"token-launch-radar","private":true,"type":"module","version":"1.0.0"}
