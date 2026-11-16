@@ -1,0 +1,48 @@
+name: Publish reviewed Token Radar v3
+on:
+  push:
+    branches: [publish-v3-80bc294]
+    paths: [.github/workflows/publish-reviewed-v3.yml]
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Publish the exact approved tree without rewriting history
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp publication/v3-approved-payload.json "$RUNNER_TEMP/v3-approved-payload.json"
+          echo 'c08587ba5df064abc773b8fcb6c6b11c55b85c8323601ceed70880c73813fe3f  '"$RUNNER_TEMP/v3-approved-payload.json" | sha256sum --check
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = 10c9c6bebf284fd04c6ab778a2eb913e7f5e9936
+          git checkout -B published-v3 origin/main
+          git rm -r -- .
+          python - <<'PYTHON'
+          import base64,json,os,pathlib
+          payload=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'v3-approved-payload.json').read_text())
+          expected={'.gitignore','LICENSE','README.md','main.ts','package.json','dashboard/app.css','dashboard/app.js','dashboard/index.html','lib/model.ts','vendor/makefun-board.ts','scripts/check-v3.ts','screenshots/1-board.png','screenshots/2-detail.png','screenshots/3-filtered.png'}
+          assert set(payload)==expected
+          for name,encoded in payload.items():
+              path=pathlib.Path(name)
+              path.parent.mkdir(parents=True,exist_ok=True)
+              path.write_bytes(base64.b64decode(encoded,validate=True))
+          PYTHON
+          git add --all
+          test "$(git write-tree)" = 8a02579f56320d679aaab912ae4cfa5f8b0408e1
+          git config user.name "$(git show -s --format=%an HEAD)"
+          git config user.email "$(git show -s --format=%ae HEAD)"
+          git commit -m "Improve v3 evidence, readable dashboard and native PNG screenshots"
+          git merge-base --is-ancestor 10c9c6bebf284fd04c6ab778a2eb913e7f5e9936 HEAD
+          git push origin HEAD:main
+          {
+            echo 'Published approved Token Radar v3.'
+            echo "Commit: $(git rev-parse HEAD)"
+            echo 'Tree: 8a02579f56320d679aaab912ae4cfa5f8b0408e1'
+            echo '14 reviewed files; original four main commits preserved; no private records.'
+          } >> "$GITHUB_STEP_SUMMARY"
